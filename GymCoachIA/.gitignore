@@ -6,3 +6,4 @@ build/
 data/
 firmware/XiaoBridge/secrets.h
 *.zip
+firmware/WioCoach/ei_model.h

@@ -2,10 +2,11 @@
 #include <Arduino.h>
 
 // Keep 0 until you have exported your own Edge Impulse Arduino library.
+// tools/install_ei.py writes ei_model.h; tools/build.py wio --ei sets this to 1.
 #ifndef COACH_USE_EI
 #define COACH_USE_EI 0
 #endif
-#define COACH_EI_HEADER "gym_coach_inferencing.h"
+#define COACH_EI_HEADER "ei_model.h"
 #ifndef COACH_USE_SERVO
 #define COACH_USE_SERVO 1
 #endif
