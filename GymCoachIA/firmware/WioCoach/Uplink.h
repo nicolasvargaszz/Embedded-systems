@@ -29,7 +29,8 @@ public:
     snprintf(boot_, sizeof(boot_), "%08lx-%08lx", static_cast<unsigned long>(a), static_cast<unsigned long>(micros()));
   }
   bool enqueue(coach::Exercise e, uint16_t reps, uint16_t bad, uint16_t goal, float weight, uint32_t duration, bool complete) {
-    if (count_ == 8) { full = true; return false; }
+    // Without a XIAO nothing is ever ACKed: drop the oldest summary so new sets never block.
+    if (count_ == 8) { head_ = (head_ + 1) % 8; --count_; lastSend_ = 0; full = true; }
     const uint8_t slot = (head_ + count_) % 8;
     snprintf(ids_[slot], sizeof(ids_[slot]), "%s-%lu", boot_, static_cast<unsigned long>(++sequence_));
     JsonDocument d;
