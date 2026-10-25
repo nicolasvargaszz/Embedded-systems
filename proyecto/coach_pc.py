@@ -159,6 +159,7 @@ def main():
 
     curl, sentadilla = Contador(70, 140), Contador(100, 160)
     grabando, cuenta, muestras, estado = None, 0, [], "1 curl  2 sentadilla  3 extension  4 descanso"
+    aviso_camara = False
     img, kp, ang, t0, fps_t, fps = None, None, [math.nan] * 4, 0, time.time(), 0.0
     cv2.namedWindow("Gym Coach IA", cv2.WINDOW_NORMAL)
     cv2.resizeWindow("Gym Coach IA", 720, 720)
@@ -169,6 +170,9 @@ def main():
     try:
         while True:
             linea = vai.readline().strip()  # cada mensaje llega como "\r{...}\n"
+            if b"Fail:-60" in linea and not aviso_camara:
+                aviso_camara = True
+                print("La camara no responde (Fail:-60): desenchufa el USB y volve a calzar la cinta de la camara.")
             if linea.startswith(b"{"):
                 try:
                     msg = json.loads(linea)
@@ -239,8 +243,8 @@ def main():
                 cuenta = time.time() + 3
                 t0 = cuenta
                 decir(f"{grabando}, en tres segundos")
-    except serial.SerialException:
-        print("Se desconecto la Vision AI (cable USB). Volve a enchufarla y abri el programa de nuevo.")
+    except serial.SerialException as e:
+        print(f"Se perdio la conexion con la Vision AI ({e}). Revisa el cable USB y abri el programa de nuevo.")
     finally:
         try:
             vai.write(b"AT+BREAK\r"); vai.close()
