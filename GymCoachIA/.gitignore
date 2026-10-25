@@ -1,0 +1,8 @@
+.venv/
+.arduino/
+__pycache__/
+*.pyc
+build/
+data/
+firmware/XiaoBridge/secrets.h
+*.zip
