@@ -1,0 +1,19 @@
+# Sistema / editores
+.DS_Store
+__pycache__/
+*.pyc
+.venv/
+.vscode/
+.idea/
+
+# Material del curso que no se publica (trae rosters y notas de otra cohorte)
+2026 NTUST embedded system Course Info.*
+temas_de_años_anteriores/
+
+# Builds y entornos de Arduino generados por los scripts
+build/
+.arduino/
+*.zip
+
+# Credenciales: nunca al repo
+.ei_api_key
