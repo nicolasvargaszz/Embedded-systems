@@ -6,7 +6,7 @@ muestras etiquetadas a 10 Hz en el formato de Edge Impulse (y las sube si hay AP
 
 Uso:   python coach_pc.py --persona juan [--lado izq|der] [--port PUERTO] [--seg 10] [--test]
 Teclas: 1 curl | 2 sentadilla | 3 extension | 4 descanso | g modo guiado | r resetear reps | q salir
-Modo guiado (--guiado N o tecla g): una voz pide curl, sentadilla y descanso N veces y graba sola.
+Modo guiado (--guiado N o tecla g): una voz pide curl, sentadilla, extension y descanso N veces y graba sola.
 API key de Edge Impulse: variable EI_API_KEY o archivo ~/.ei_api_key (nunca en esta carpeta).
 Funciona en macOS, Windows y Linux; el puerto se detecta solo si hay un unico candidato.
 """
@@ -18,7 +18,7 @@ from serial.tools import list_ports
 
 ETIQUETAS = {ord("1"): "curl", ord("2"): "sentadilla", ord("3"): "extension", ord("4"): "descanso"}
 SENSORES = ["codo", "rodilla", "cadera", "torso"]
-PLAN_GUIADO = ["curl", "sentadilla", "descanso"]
+PLAN_GUIADO = ["curl", "sentadilla", "extension", "descanso"]
 INTERVALO_MS = 100
 MIN_CONF = 0.3
 ESQUELETO = [(5, 7), (7, 9), (6, 8), (8, 10), (5, 6), (5, 11), (6, 12), (11, 12),

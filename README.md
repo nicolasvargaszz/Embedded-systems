@@ -51,9 +51,8 @@ El puerto se detecta solo; si hay más de uno te los lista y lo pasás con
 
 | Tecla | Qué hace |
 |---|---|
-| `g` | **Modo guiado** (lo más fácil): una voz pide curl → sentadilla → descanso, 4 rondas, y graba sola |
-| `1` / `2` / `4` | Graba una muestra suelta de curl / sentadilla / descanso (10 s, cuenta 3 s antes) |
-| `3` | Extensión de pierna (para cuando tengamos la máquina) |
+| `g` | **Modo guiado** (lo más fácil): una voz pide curl → sentadilla → extensión → descanso, 4 rondas, y graba sola |
+| `1` / `2` / `3` / `4` | Graba una muestra suelta de curl / sentadilla / extensión / descanso (10 s, cuenta 3 s antes) |
 | `r` | Reinicia los contadores de reps |
 | `q` | Salir |
 
@@ -66,6 +65,8 @@ adquisición de Edge Impulse, 10 Hz, ejes `codo, rodilla, cadera, torso`).
 - **Todo el cuerpo en cuadro**, también en los curls: el modelo usa los cuatro ángulos. Si
   la terminal dice `OJO: casi no se vio rodilla`, repetí esa muestra con mejor encuadre.
 - Una sola persona en cuadro.
+- En `extension` sin máquina: sentado de costado en una silla, estirá la rodilla hasta
+  quedar recta y volvé a 90°. El modelo necesita las **4 etiquetas**.
 - En `descanso`: parado, caminando, acomodándose, sentado. Cualquier cosa que no sea el ejercicio.
 - Mínimo **4 muestras de cada etiqueta por persona** (`g` hace exactamente eso). Si podés,
   grabá también del otro lado (`--lado der`).
@@ -86,6 +87,35 @@ git push
 `gym-coach-ia` y guardala en un archivo `~/.ei_api_key` (o en la variable `EI_API_KEY`).
 Con eso cada muestra se sube sola al terminar. Con `--test` va al set de test en lugar de
 training. **Nunca subas la key al repo.**
+
+### 5. Entrenar en Edge Impulse
+
+Proyecto `gym-coach-ia` en [studio.edgeimpulse.com](https://studio.edgeimpulse.com).
+
+1. **Data acquisition → Upload data**: elegí los `.json` de `proyecto/datos/`, *Infer from
+   filename* para la etiqueta. Los de **una persona** van a *Testing*, los demás a *Training*.
+2. **Impulse design → Create impulse**: *Window size* **2000 ms**, *Window increase* **500 ms**,
+   *Frequency* **10 Hz**. Bloque de procesamiento **Flatten**, bloque de aprendizaje
+   **Classification**. Los 4 ejes (`codo, rodilla, cadera, torso`) tildados, en ese orden.
+3. **Flatten → Generate features**. **Classifier → Start training** (los valores por defecto andan).
+4. **Model testing → Classify all**: ese es el F1 que se reporta.
+5. **Deployment → Arduino library → Build**: baja un `.zip`.
+
+### 6. Cargar el modelo en el Wio Terminal
+
+El modelo de Edge Impulse corre en el Wio (lee los ángulos); la Vision AI corre el de pose.
+Desde `GymCoachIA/`, con el Wio por USB (y la Vision AI en el puerto Grove izquierdo):
+
+```bash
+python3 tools/install_arduino.py            # una sola vez, baja el core y las librerías
+python3 tools/install_ei.py ~/Downloads/ei-gym-coach-ia-arduino-*.zip
+python3 tools/build.py wio --ei --upload /dev/cu.usbmodemXXXX
+```
+
+En el Wio: stick arriba/abajo hasta el ejercicio, izquierda/derecha hasta **AUTO (EI)**, apretá
+el stick, hacé unas reps de calentamiento y el modelo elige el ejercicio. El cableado de
+LEDs, RGB, display y servo está en la tabla de `GymCoachIA/README.md`; probalo antes con
+`python3 tools/build.py wio --self-test --no-servo --upload PUERTO`.
 
 ### Si algo falla
 
