@@ -74,7 +74,7 @@ adquisición de Edge Impulse, 10 Hz, ejes `codo, rodilla, cadera, torso`).
 
 ### 4. Compartir los datos
 
-**Opción A — al repo** (Nico los tiene que agregar como colaboradores):
+**Opción A — al repo**:
 
 ```bash
 git pull
@@ -83,7 +83,7 @@ git commit -m "Datos de juan: curl, sentadilla, descanso"
 git push
 ```
 
-**Opción B — directo a Edge Impulse**: pedile a Nico la API key del proyecto
+**Opción B — directo a Edge Impulse**:
 `gym-coach-ia` y guardala en un archivo `~/.ei_api_key` (o en la variable `EI_API_KEY`).
 Con eso cada muestra se sube sola al terminar. Con `--test` va al set de test en lugar de
 training. **Nunca subas la key al repo.**
