@@ -207,6 +207,9 @@ public:
 
 // A stream is sampled onto a fixed 100 ms grid. Both Python export and the EI
 // adapter use linear interpolation of adjacent fresh frames, never stale holds.
+// Over Grove I2C the Vision AI delivers ~3.3 fps (~300 ms/frame), so the gap
+// limit must stay above that or the 2 s EI window never fills.
+constexpr uint32_t RESAMPLE_MAX_GAP_MS = 500;
 class Resampler {
   bool have_ = false;
   uint32_t previousTime_ = 0, nextTime_ = 0;
@@ -217,7 +220,7 @@ public:
     if (!a.allValid()) { reset(); return; }
     const float v[4] = {a.elbow, a.knee, a.hip, a.torso};
     const uint32_t dt = now - previousTime_;
-    if (!have_ || dt > 250) {
+    if (!have_ || dt > RESAMPLE_MAX_GAP_MS) {
       have_ = true; previousTime_ = now; nextTime_ = now + 100;
       for (int i = 0; i < 4; ++i) previous_[i] = v[i];
       emit(now, v); return;

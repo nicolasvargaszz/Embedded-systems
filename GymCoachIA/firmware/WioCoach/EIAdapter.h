@@ -33,7 +33,14 @@ class EIAdapter {
     float best = 0; const char* name = "";
     for (size_t i = 0; i < EI_CLASSIFIER_LABEL_COUNT; ++i)
       if (result.classification[i].value > best) { best = result.classification[i].value; name = result.classification[i].label; }
-    confidence = best;
+    confidence = best; label = name;
+    if (Serial) {
+      Serial.print("# ei");
+      for (size_t i = 0; i < EI_CLASSIFIER_LABEL_COUNT; ++i) {
+        Serial.print(' '); Serial.print(result.classification[i].label); Serial.print('='); Serial.print(result.classification[i].value, 2);
+      }
+      Serial.println();
+    }
     coach::Exercise prediction;
     if (!std::strcmp(name, "curl")) prediction = coach::Exercise::Curl;
     else if (!std::strcmp(name, "sentadilla")) prediction = coach::Exercise::Squat;
@@ -53,17 +60,20 @@ class EIAdapter {
     if (count_ == 20) { std::memmove(window_, window_ + 4, 76 * sizeof(float)); count_ = 19; }
     std::memcpy(window_ + 4 * count_, v, 4 * sizeof(float)); ++count_; ++hop_;
 #if COACH_USE_EI
-    if (count_ == 20 && hop_ >= 5) { hop_ = 0; infer(); }
+    if (count_ == 20 && hop_ >= 2) { hop_ = 0; infer(); }  // a decision every 200 ms
 #endif
   }
 public:
   bool ready = false, error = false;
   float confidence = 0;
+  const char* label = "";  // latest prediction, shown live on the LCD
   coach::Exercise detected = coach::Exercise::Rest;
-  void reset() { sampler_.reset(); count_ = hop_ = 0; haveGrid_ = false; confidence = 0; clearVote(); }
+  void reset() { sampler_.reset(); count_ = hop_ = 0; haveGrid_ = false; confidence = 0; label = ""; clearVote(); }
   void push(uint32_t t, const coach::Angles& a) {
 #if COACH_USE_EI
-    if (!a.allValid()) { reset(); return; }
+    // Skip frames with a missing joint instead of dropping the window: the resampler
+    // interpolates across them, and a loss longer than RESAMPLE_MAX_GAP_MS still resets.
+    if (!a.allValid()) return;
     sampler_.push(t, a, [this](uint32_t ts, const float* v) { sample(ts, v); });
 #else
     (void)t; (void)a;

@@ -147,7 +147,7 @@ void readPose() {
   lastVision = now;
   if (vision.subjectChanged) { counter.loseTracking(); classifier.reset(); notice = "Reacquired: hold start"; }
   logFrame();
-  if (choice == 3 && (mode == Mode::AutoWait || mode == Mode::Idle)) classifier.push(now, vision.value);
+  classifier.push(now, vision.value);  // live classification in every mode and menu choice
   if (mode == Mode::AutoWait && classifier.ready && classifier.detected != Exercise::Rest) {
     startSet(classifier.detected); notice = "Identified; hold start"; return;
   }
@@ -185,7 +185,8 @@ void drawSkeleton() {
 void drawUI(uint32_t now) {
   lcd.fillRect(0, 0, 320, 43, 0x0925);
   lcd.setTextColor(TFT_WHITE, 0x0925); lcd.drawString("GYM COACH IA", 8, 3, 2);
-  char line[80]; snprintf(line, sizeof(line), "%s | %.1f FPS | Q:%u", streaming ? "REC" : "POSE", fps, uplink.queued());
+  char line[80]; if (*classifier.label) snprintf(line, sizeof(line), "%.1f FPS | NOW: %s %.0f%%", fps, classifier.label, classifier.confidence * 100);
+  else snprintf(line, sizeof(line), "%s | %.1f FPS | Q:%u", streaming ? "REC" : "POSE", fps, uplink.queued());
   lcd.drawString(line, 8, 23, 2);
   drawSkeleton(); lcd.fillRect(146, 43, 174, 159, TFT_BLACK);
   const bool editing = mode == Mode::Idle || mode == Mode::Done;
