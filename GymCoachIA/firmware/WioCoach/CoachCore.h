@@ -93,14 +93,15 @@ struct Profile {
   float direction;      // +1 = extension; -1 = flexion
   float maxTorso = 45;
   float depart = 12, reversal = 12, minimumTravel = 25;
-  uint32_t minimumCycleMs = 600, minimumGoodMs = 1000;
+  uint32_t minimumCycleMs = 500, minimumGoodMs = 700;  // ~3 fps: a 1 s rep often measures 0.95 s
   uint32_t restHoldMs = 350, maximumCycleMs = 15000;
 };
 inline Profile profile(Exercise e) {
   Profile p;
-  if (e == Exercise::Curl) { p.startGate = 115; p.goodRest = 140; p.target = 55; p.direction = -1; }
-  else if (e == Exercise::Squat) { p.startGate = 145; p.goodRest = 160; p.target = 100; p.direction = -1; }
-  else { p.startGate = 115; p.goodRest = 105; p.target = 155; p.direction = 1; }
+  // Lenient on purpose: at ~3 fps the camera often misses the deepest and the resting frame.
+  if (e == Exercise::Curl) { p.startGate = 115; p.goodRest = 130; p.target = 70; p.direction = -1; }
+  else if (e == Exercise::Squat) { p.startGate = 145; p.goodRest = 155; p.target = 115; p.direction = -1; }
+  else { p.startGate = 115; p.goodRest = 120; p.target = 145; p.direction = 1; }
   return p;
 }
 enum Fault : uint8_t { None = 0, Range = 1, RestRange = 2, Fast = 4, Torso = 8 };
