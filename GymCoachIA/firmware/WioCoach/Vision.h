@@ -16,13 +16,19 @@ public:
   bool available = false, subjectChanged = false;
   uint32_t frameMs = 0;
   int lastError = 0, requestedSide = -1;
-  void begin() { available = ai_.begin(&Wire, -1, 0x62, 2, 400000); }
+  bool withImage = false;  // CAM 1: also fetch the JPEG so the laptop can show the camera
+  String image() { return ai_.last_image(); }
+  void begin() {
+    available = ai_.begin(&Wire, -1, 0x62, 2, 400000);
+    ai_.set_rx_buffer(32 * 1024);  // replies with an image carry a ~4 KB base64 JPEG
+  }
   void unlock() { lockedSide_ = -1; tracked_ = false; value = coach::Angles(); }
   bool read(coach::Exercise exercise, bool allJoints, bool lockSide) {
     subjectChanged = false;
     // Some library versions retain results when a JSON field is absent.
     ai_.keypoints().clear();
-    lastError = ai_.invoke(1, true, false); // results only, no image transfer
+    // The library sends AT+INVOKE=1,!filter,filter: filter=true means "results only" (no JPEG).
+    lastError = ai_.invoke(1, !withImage, withImage);
     frameMs = millis();
     pose = coach::Pose(); value = coach::Angles();
     if (lastError != CMD_OK) { available = false; return false; }

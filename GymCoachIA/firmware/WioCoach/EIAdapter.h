@@ -33,7 +33,7 @@ class EIAdapter {
     float best = 0; const char* name = "";
     for (size_t i = 0; i < EI_CLASSIFIER_LABEL_COUNT; ++i)
       if (result.classification[i].value > best) { best = result.classification[i].value; name = result.classification[i].label; }
-    confidence = best; label = name;
+    confidence = best; label = name; at = millis();
     if (Serial) {
       Serial.print("# ei");
       for (size_t i = 0; i < EI_CLASSIFIER_LABEL_COUNT; ++i) {
@@ -67,6 +67,7 @@ public:
   bool ready = false, error = false;
   float confidence = 0;
   const char* label = "";  // latest prediction, shown live on the LCD
+  uint32_t at = 0;          // millis() of that prediction
   coach::Exercise detected = coach::Exercise::Rest;
   void reset() { sampler_.reset(); count_ = hop_ = 0; haveGrid_ = false; confidence = 0; label = ""; clearVote(); }
   void push(uint32_t t, const coach::Angles& a) {

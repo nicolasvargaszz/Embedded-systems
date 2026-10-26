@@ -40,27 +40,62 @@ def parsear(linea: str):
 
 ENGLISH = {"curl": "Bicep curl", "sentadilla": "Squat", "extension": "Leg extension", "descanso": "Rest"}
 
-def en_vivo(s: serial.Serial, iguales: int, minimo: float) -> None:
+HUESOS = [(5, 7), (7, 9), (6, 8), (8, 10), (5, 6), (5, 11), (6, 12), (11, 12), (11, 13), (13, 15), (12, 14), (14, 16)]
+
+def mostrar(jpeg_b64: str, puntos: list, texto: str, completo: bool) -> None:
+    """Camera window: the Vision AI frame, upscaled, with skeleton and the live prediction."""
+    import base64, cv2, numpy as np
+    img = cv2.imdecode(np.frombuffer(base64.b64decode(jpeg_b64), np.uint8), cv2.IMREAD_COLOR)
+    if img is None: return
+    f = 3
+    img = cv2.resize(img, None, fx=f, fy=f)
+    for a, b in HUESOS:
+        if puntos and puntos[a][2] > 30 and puntos[b][2] > 30:
+            cv2.line(img, (puntos[a][0] * f, puntos[a][1] * f), (puntos[b][0] * f, puntos[b][1] * f), (255, 255, 0), 3)
+    for x, y, sc in puntos[5:]:
+        if sc > 30: cv2.circle(img, (x * f, y * f), 6, (0, 255, 0), -1)
+    color = (0, 200, 0) if completo else (0, 0, 255)
+    cv2.putText(img, texto if completo else "STEP BACK: full body not visible", (10, 40), cv2.FONT_HERSHEY_SIMPLEX, 1.1, color, 3)
+    cv2.imshow("Gym Coach IA - camara", img)
+    cv2.waitKey(1)
+
+def en_vivo(s: serial.Serial, iguales: int, minimo: float, camara: bool) -> None:
     """Announce (in English) each time the Wio's prediction settles on a new exercise."""
     print("En vivo: Ctrl+C para salir")
+    if camara: s.write(b"CAM 1\n")
+    puntos, completo, texto = [], False, ""
     actual, candidato, racha = None, None, 0
+    ultimo_completo, avisado = time.time(), False
     try:
         while True:
-            r = parsear(s.readline().decode(errors="replace").strip())
+            linea = s.readline().decode(errors="replace").strip()
+            if linea.startswith("K,"):
+                v = [int(float(x)) for x in linea[2:].split(",")]
+                puntos = [v[i:i + 3] for i in range(0, 51, 3)]
+            elif linea.startswith("I,"):
+                mostrar(linea[2:], puntos, texto, completo)
+            if linea.startswith("F,"):
+                completo = "nan" not in linea
+                if completo: ultimo_completo, avisado = time.time(), False
+                elif time.time() - ultimo_completo > 1.5 and not avisado:
+                    print(f"{time.strftime('%H:%M:%S')}  (la cámara no ve las 6 articulaciones de un lado)")
+                    avisado = True
+            r = parsear(linea)
             if not r: continue
             etiqueta, probs = r
             if probs[etiqueta] < minimo: candidato, racha = None, 0; continue
             racha = racha + 1 if etiqueta == candidato else 1
             candidato = etiqueta
-            print(f"   {etiqueta:<10} {probs[etiqueta]:.0%}")
+            print(f"{time.strftime('%H:%M:%S')}  {etiqueta:<10} {probs[etiqueta]:.0%}")
+            texto = f"{ENGLISH[etiqueta]} {probs[etiqueta]:.0%}"
             if racha >= iguales and etiqueta != actual:
                 actual = etiqueta
-                print(f">>> {ENGLISH[etiqueta]}")
+                print(f"{time.strftime('%H:%M:%S')}  >>> {ENGLISH[etiqueta]}")
                 subprocess.Popen(["say", "-v", "Samantha", ENGLISH[etiqueta]])
     except KeyboardInterrupt:
         pass
     finally:
-        s.write(b"STREAM 0\n")
+        s.write(b"CAM 0\nSTREAM 0\n")
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
@@ -68,11 +103,12 @@ def main():
     p.add_argument("--preparacion", type=int, default=30, help="Segundos para ponerte en posición")
     p.add_argument("--en-vivo", action="store_true", help="Sin guion: anuncia en inglés cada cambio de ejercicio")
     p.add_argument("--iguales", type=int, default=3, help="Predicciones seguidas (cada 200 ms) para anunciar")
+    p.add_argument("--camara", action="store_true", help="Con --en-vivo: muestra la cámara del Vision AI en una ventana")
     p.add_argument("--minimo", type=float, default=0.7, help="Confianza mínima de una predicción")
     a = p.parse_args()
     s = serial.Serial(a.port or puerto(), 115200, timeout=0.2)
     time.sleep(0.5); s.reset_input_buffer(); s.write(b"STREAM 1\n")
-    if a.en_vivo: return en_vivo(s, a.iguales, a.minimo)
+    if a.en_vivo: return en_vivo(s, a.iguales, a.minimo, a.camara)
     salida = Path(__file__).resolve().parents[1] / "data" / "pruebas"
     salida.mkdir(parents=True, exist_ok=True)
     log = (salida / f"prueba_{datetime.now():%Y%m%d_%H%M%S}.log").open("w")

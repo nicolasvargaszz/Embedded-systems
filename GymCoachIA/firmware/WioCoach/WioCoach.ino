@@ -111,6 +111,7 @@ void handleKeys(uint32_t now) {
   else { sideChoice = ((sideChoice + 1 + delta + 3) % 3) - 1; vision.requestedSide = sideChoice; vision.unlock(); }
 }
 void handleCommand() {
+  if (!strcmp(command, "CAM 1") || !strcmp(command, "CAM 0")) { vision.withImage = command[4] == '1'; return; }
   if (!strcmp(command, "STREAM 1")) { streaming = true; classifier.reset(); vision.unlock(); Serial.println("# stream on; F,1,ms,side,codo,rodilla,cadera,torso"); }
   else if (!strcmp(command, "STREAM 0")) streaming = false;
   else if (!strcmp(command, "SIDE AUTO")) { sideChoice = -1; vision.requestedSide = -1; vision.unlock(); }
@@ -137,6 +138,12 @@ void logFrame() {
   Serial.print("F,1,"); Serial.print(vision.frameMs); Serial.print(','); Serial.print(a.side);
   for (float v : {a.elbow, a.knee, a.hip, a.torso}) { Serial.print(','); if (coach::finite(v)) Serial.print(v, 3); else Serial.print("nan"); }
   Serial.println();
+  if (!vision.withImage) return;
+  // Camera view for the laptop: keypoints (x,y,score x17) and the JPEG as base64.
+  Serial.print("K");
+  for (const auto& k : vision.pose.p) { Serial.print(','); Serial.print(k.x, 0); Serial.print(','); Serial.print(k.y, 0); Serial.print(','); Serial.print(int(k.score)); }
+  Serial.println();
+  Serial.print("I,"); Serial.println(vision.image());
 }
 void readPose() {
   const bool needsAll = streaming || choice == 3;
@@ -242,8 +249,26 @@ void loop() {
   if (now - lastVision >= settings::VISION_PERIOD_MS) readPose();
   now = millis();
   const bool flash = flashUntil && static_cast<int32_t>(flashUntil - now) > 0;
-  outputs.color(flash ? (feedbackFaults ? Outputs::Red : Outputs::Green) : (mode == Mode::Running && frameValid && counter.phase() != coach::Phase::SeekRest ? Outputs::Green : Outputs::Blue));
-  outputs.depth(mode == Mode::Running && frameValid ? counter.progress() : 0);
+  if (mode == Mode::Running || flash) {
+    outputs.color(flash ? (feedbackFaults ? Outputs::Red : Outputs::Green) : (frameValid && counter.phase() != coach::Phase::SeekRest ? Outputs::Green : Outputs::Blue));
+    outputs.depth(mode == Mode::Running && frameValid ? counter.progress() : 0);
+  } else {
+    // Outside a set the circuit follows the live classifier: RGB off = no fresh prediction,
+    // blue = rest, green = exercising; LED bar = how deep the current movement is for the
+    // detected exercise, with the same thresholds as the rep counter (half rep = fewer LEDs).
+    const bool fresh = *classifier.label && now - classifier.at < 1000;
+    const char* l = fresh ? classifier.label : "";
+    const bool rest = !strcmp(l, "descanso");
+    outputs.color(!fresh ? Outputs::Off : rest ? Outputs::Blue : Outputs::Green);
+    float depth = 0;
+    if (fresh && !rest) {
+      const Exercise e = !strcmp(l, "curl") ? Exercise::Curl : !strcmp(l, "sentadilla") ? Exercise::Squat : Exercise::Extension;
+      const coach::Profile p = coach::profile(e);
+      const float angle = vision.value.primary(e);
+      if (coach::finite(angle)) depth = constrain((angle - p.goodRest) / (p.target - p.goodRest), 0.0f, 1.0f);
+    }
+    outputs.depth(depth);
+  }
   if (now - lastUI >= settings::UI_PERIOD_MS) { lastUI = now; drawUI(now); }
 #endif
 }

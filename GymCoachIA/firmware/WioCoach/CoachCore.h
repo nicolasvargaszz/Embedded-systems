@@ -209,7 +209,7 @@ public:
 // adapter use linear interpolation of adjacent fresh frames, never stale holds.
 // Over Grove I2C the Vision AI delivers ~3.3 fps (~300 ms/frame), so the gap
 // limit must stay above that or the 2 s EI window never fills.
-constexpr uint32_t RESAMPLE_MAX_GAP_MS = 500;
+constexpr uint32_t RESAMPLE_MAX_GAP_MS = 1000;  // ~650 ms/frame with the camera view on
 class Resampler {
   bool have_ = false;
   uint32_t previousTime_ = 0, nextTime_ = 0;
