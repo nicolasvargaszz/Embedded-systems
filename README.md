@@ -114,8 +114,9 @@ python3 tools/build.py wio --ei --upload /dev/cu.usbmodemXXXX
 
 En el Wio: stick arriba/abajo hasta el ejercicio, izquierda/derecha hasta **AUTO (EI)**, apretá
 el stick, hacé unas reps de calentamiento y el modelo elige el ejercicio. El cableado de
-LEDs, RGB, display y servo está en la tabla de `GymCoachIA/README.md`; probalo antes con
-`python3 tools/build.py wio --self-test --no-servo --upload PUERTO`.
+los LEDs y el RGB está en la tabla de `GymCoachIA/README.md`; probalo antes con
+`python3 tools/build.py wio --self-test --no-servo --upload PUERTO`. Para el mid demo se compila
+siempre con `--no-servo` (ver "Estado actual" abajo).
 
 ### Si algo falla
 
@@ -148,12 +149,22 @@ Si al arrancar aparece `dw_iic_write err ... Fail:-60`, la cinta de la cámara e
 | Carpeta | Qué es |
 |---|---|
 | `proyecto/` | `coach_pc.py` (vista + grabador de datos en la compu), el modelo de pose y `datos/` |
-| `GymCoachIA/` | Firmware completo para el Wio Terminal (conteo, técnica, salidas, Edge Impulse, XIAO + Blynk) con sus herramientas y tests. Ver su propio `README.md` |
+| `GymCoachIA/` | Firmware completo para el Wio Terminal (conteo, técnica, salidas, Edge Impulse; el puente XIAO + Blynk está escrito pero no se usa todavía) con sus herramientas y tests. Ver su propio `README.md` |
 | `vision_wio/` | Prueba de Vision AI V2 → Wio por I2C con la cámara en el LCD |
 | `clases/` | Checkpoints de clase (servo, micrófono, DHT20, RGB) y tareas HW1/HW2 |
 | `image/` | Fotos del kit y tarjeta de pines (`componentes.jpeg`) |
 | `Guia_Gym_Coach_IA.pdf` | Guía del proyecto: hardware, conexiones, dataset, plan |
 | `CLAUDE.md` | Notas técnicas y trampas conocidas del hardware (vale leerlas) |
 
-Hardware: Seeed Wio Terminal, Grove Vision AI V2 + cámara OV5647, XIAO ESP32-C3, display
-TM1637, LED RGB (ánodo común), 3 LEDs, servo SG90.
+## Estado actual (mid demo, 27/10/2026)
+
+Hardware que se usa: Seeed Wio Terminal, Grove Vision AI V2 + cámara OV5647, LED RGB (ánodo
+común), 3 LEDs, buzzer del Wio y la laptop (voz por USB).
+
+**No se usan todavía**, aunque el firmware los soporta:
+- **Servo SG90**: colgaba el Wio por consumo; se compila con `--no-servo`.
+- **Display TM1637**: el que tenemos no es el módulo de 4 pines.
+- **XIAO ESP32-C3 + Blynk**: no hay dashboard todavía; queda para el final.
+
+Modelo de Edge Impulse v1.0.3: test 86,6 %, F1 0,90; en vivo en el Wio, 86 % de aciertos.
+Detalle para el documento y las slides en `proyecto/midterm_referencia.md`.

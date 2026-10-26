@@ -1,5 +1,9 @@
 # Gym Coach IA — full source package
 
+> **Mid demo status (2026-10-27):** only the Wio, Vision AI V2, RGB LED, 3 LEDs and buzzer are
+> used. The servo (build with `--no-servo`), the TM1637 display and the XIAO/Blynk bridge are
+> supported by the code below but not wired yet.
+
 This project targets the hardware in your **Guia_Gym_Coach_IA (1).pdf**:
 Wio Terminal + Grove Vision AI V2 + OV5647 camera, XIAO ESP32-C3, TM1637
 four-digit display, common-anode RGB LED, three LEDs, SG90 servo and Wio buzzer.
