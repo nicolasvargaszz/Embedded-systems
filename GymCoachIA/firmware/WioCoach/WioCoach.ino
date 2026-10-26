@@ -125,13 +125,22 @@ void handleKeys(uint32_t now) {
 }
 void handleCommand() {
   if (!strcmp(command, "CAM 1") || !strcmp(command, "CAM 0")) { vision.withImage = command[4] == '1'; return; }
+  // Same as the stick, for the laptop panel: START = AUTO set (identify, then count); END = finish the set.
+  if (!strcmp(command, "START")) {
+    if (mode == Mode::Idle || mode == Mode::Done) { choice = 3; field = 0; toggleStart(); }
+    reportMode = true; return;
+  }
+  if (!strcmp(command, "END")) {
+    if (mode == Mode::AutoWait) { mode = Mode::Idle; notice = "Auto cancelled"; } else finishSet();
+    reportMode = true; return;
+  }
   if (!strcmp(command, "STREAM 1")) { streaming = true; classifier.reset(); vision.unlock(); Serial.println("# stream on; F,1,ms,side,codo,rodilla,cadera,torso"); reportMode = true; }
   else if (!strcmp(command, "STREAM 0")) streaming = false;
   else if (!strcmp(command, "SIDE AUTO")) { sideChoice = -1; vision.requestedSide = -1; vision.unlock(); }
   else if (!strcmp(command, "SIDE LEFT")) { sideChoice = 0; vision.requestedSide = 0; vision.unlock(); }
   else if (!strcmp(command, "SIDE RIGHT")) { sideChoice = 1; vision.requestedSide = 1; vision.unlock(); }
   else if (!strcmp(command, "STATUS")) { Serial.print("# vision_error="); Serial.print(vision.lastError); Serial.print(" queue="); Serial.println(uplink.queued()); return; }
-  else { Serial.println("# commands: STREAM 1|0, SIDE AUTO|LEFT|RIGHT, STATUS"); return; }
+  else { Serial.println("# commands: STREAM 1|0, START, END, SIDE AUTO|LEFT|RIGHT, STATUS"); return; }
   counter.loseTracking(); classifier.reset();
 }
 void readCommands() {

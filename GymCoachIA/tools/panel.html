@@ -22,6 +22,7 @@
   button { background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 8px;
            padding: 6px 14px; font: inherit; cursor: pointer; }
   button:hover { border-color: var(--muted); }
+  button.go { background: #12301f; border-color: #1f5c3a; color: var(--green); font-weight: 600; }
   #banner { display: none; margin: 16px 24px 0; padding: 12px 16px; border-radius: 10px;
             background: #3b2a0d; color: var(--yellow); font-size: 18px; }
   main { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 16px; padding: 16px 24px 24px; }
@@ -66,7 +67,9 @@
   <span class="grow"></span>
   <span class="meta" id="fps">— fps</span>
   <span class="meta" id="clock">00:00</span>
-  <button id="reset" title="Start a new session on this page">New session</button>
+  <button id="start" class="go" title="Same as pressing the stick on AUTO (EI)">Start set</button>
+  <button id="end" title="Same as pressing the stick during a set">End set</button>
+  <button id="reset" title="Clear this page and start a new CSV">New session</button>
 </header>
 <div id="banner"></div>
 <main>
@@ -227,14 +230,14 @@ function wioHint() {
   const s = wio.state;
   if (s === "running") {
     if (exercise && exercise !== "descanso" && wio.exercise && exercise !== wio.exercise)
-      return `The Wio is counting <b>${name}</b>. To switch, press the stick to end the set, then press it again.`;
+      return `The Wio is counting <b>${name}</b>. To switch exercise: <b>End set</b>, then <b>Start set</b>.`;
     return `Counting <b>${name}</b> on the Wio: hold the start position, then do full reps.`;
   }
   if (s === "auto") return "Identifying the exercise: start moving and the Wio picks it.";
   if (s === "paused") return "Set paused on the Wio: press B to continue.";
-  if (s === "done") return "Set finished. Press the stick on the Wio to start the next one.";
+  if (s === "done") return "Set finished. Press <b>Start set</b> for the next exercise.";
   if (s === "idle" || !reps.length)
-    return "Reps count once a set starts: on the Wio pick <b>AUTO (EI)</b>, press the stick and hold the start position.";
+    return "Reps count once a set starts: press <b>Start set</b>, stand still in the start position, then exercise.";
   return "";
 }
 
@@ -273,6 +276,8 @@ es.onmessage = m => {
 };
 es.onerror = () => { $("status").textContent = "Panel stopped: run tools/panel.py"; $("status").className = "pill"; };
 $("reset").onclick = () => fetch("/reset", { method: "POST" });
+$("start").onclick = () => fetch("/start", { method: "POST" });
+$("end").onclick = () => fetch("/end", { method: "POST" });
 render();
 requestAnimationFrame(draw);
 </script>

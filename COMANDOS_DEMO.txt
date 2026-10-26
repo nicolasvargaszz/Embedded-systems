@@ -25,6 +25,10 @@ GYM COACH IA - COMANDOS PARA EL MID DEMO (no necesitan internet)
 
    ~/.venvs/gym-coach/bin/python ~/Desktop/Code/embedded/GymCoachIA/tools/panel.py
 
+   PARA QUE CUENTE REPS: boton verde "Start set" en el panel (o AUTO (EI) + stick en el Wio).
+   Quedarse quieto en la posicion inicial, despues hacer el ejercicio: el Wio fija ese ejercicio.
+   Para cambiar de ejercicio: "End set" y otra vez "Start set".
+
    Sin voz: agregar --sin-voz.   Cortar: Ctrl+C
 
 3b) Solo voz, sin panel (lo de antes). Para acomodarse en el encuadre agregar --camara
@@ -49,7 +53,7 @@ SI ALGO FALLA
 - "la camara no ve las 6 articulaciones": ponerse de COSTADO, a 2-3 m, cuerpo entero en cuadro.
 - Solo reconoce el curl: la camara no ve las piernas. Alejarla o bajarla hasta que se vean
   los PIES (la rodilla necesita cadera, rodilla y tobillo). El panel avisa cual parte falta.
-- El panel no suma reps: el Wio cuenta solo con una serie iniciada. En el Wio elegir
-  AUTO (EI), APRETAR el stick, y quedarse quieto en la posicion inicial un momento.
+- El panel no suma reps: el Wio cuenta solo con una serie iniciada. Apretar "Start set"
+  en el panel; el recuadro celeste dice que esta haciendo el Wio.
 
 Tener grabado el video del demo por si falla en vivo. 8 minutos, sin pasarse.

@@ -65,6 +65,15 @@ class Lector:
         self.bus, self.port, self.voz, self.iguales, self.minimo = bus, port, voz, iguales, minimo
         self.candidato, self.racha = None, 0
         self.csv: Path | None = None
+        self.serial: serial.Serial | None = None
+        self.escribir = threading.Lock()
+
+    def enviar(self, comando: bytes) -> bool:
+        """Command for the Wio from the page (START/END); False if it is not connected."""
+        with self.escribir:
+            if not self.serial: return False
+            try: self.serial.write(comando + b"\n"); return True
+            except (serial.SerialException, OSError): return False
 
     def correr(self) -> None:
         while True:
@@ -74,6 +83,7 @@ class Lector:
             try:
                 with serial.Serial(port, 115200, timeout=0.3, write_timeout=1) as s:
                     time.sleep(0.5); s.reset_input_buffer(); s.write(b"CAM 0\nSTREAM 1\n")
+                    self.serial = s
                     self.bus.set_status(True, "Live")
                     ultimo = time.time()
                     while True:
@@ -85,6 +95,7 @@ class Lector:
                         if linea.startswith("# GymCoachIA"): s.write(b"CAM 0\nSTREAM 1\n")  # the Wio rebooted
                         self.procesar(linea)
             except (serial.SerialException, OSError):
+                self.serial = None
                 self.bus.set_status(False, "Wio disconnected: reconnecting...")
                 time.sleep(1)
 
@@ -164,6 +175,9 @@ def servidor(bus: Bus, puerto: int, lector: Lector) -> ThreadingHTTPServer:
                 self.send_error(404)
 
         def do_POST(self):
+            if self.path in ("/start", "/end"):
+                ok = lector.enviar(b"START" if self.path == "/start" else b"END")
+                self.send_response(204 if ok else 503); self.end_headers(); return
             if self.path != "/reset": return self.send_error(404)
             bus.reps.clear(); lector.csv = None  # next rep starts a new CSV
             bus.emit("reps", items=[])
