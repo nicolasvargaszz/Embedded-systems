@@ -78,6 +78,20 @@ void startSet(Exercise e) {
   feedbackFaults = 0; flashUntil = 0; notice = "Hold the starting position";
   outputs.reps(0, goal);
 }
+// AUTO sets follow the classifier: if it confidently sees another exercise for 1.5 s, count that one.
+// Without this the set stays on the first exercise identified (e.g. squats) while the user does curls.
+void followClassifier(uint32_t now) {
+  static Exercise pending = Exercise::Rest;
+  static uint32_t since = 0;
+  const bool other = mode == Mode::Running && choice == 3 && classifier.ready &&
+                     classifier.detected != Exercise::Rest && classifier.detected != exercise;
+  if (!other) { since = 0; return; }
+  if (!since || pending != classifier.detected) { pending = classifier.detected; since = now; return; }
+  if (now - since < 1500) return;
+  since = 0;
+  exercise = pending; counter.configure(pending, coach::profile(pending)); vision.unlock();
+  notice = "Switched exercise; hold start"; outputs.reps(0, goal); reportMode = true;
+}
 void finishSet() {
   if (mode != Mode::Running && mode != Mode::Paused) return;
   if (mode == Mode::Running) { const uint32_t now = millis(); setMs += now - lastLoop; lastLoop = now; }
@@ -180,6 +194,7 @@ void readPose() {
   if (mode == Mode::AutoWait && classifier.ready && classifier.detected != Exercise::Rest) {
     startSet(classifier.detected); notice = "Identified; hold start"; return;
   }
+  followClassifier(now);
   if (mode == Mode::Running) {
     coach::RepEvent event = counter.update(vision.value.primary(exercise), vision.value.torso,
                                          vision.value.validFor(exercise), now);

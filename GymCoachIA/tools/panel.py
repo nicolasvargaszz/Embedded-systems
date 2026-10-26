@@ -118,7 +118,9 @@ class Lector:
             self.bus.emit("mode", **self.bus.mode)
         elif linea.startswith("# rep "):
             campos = dict(par.split("=") for par in linea[6:].split() if "=" in par)
-            rep = {"t": datetime.now().strftime("%H:%M:%S"), "epoch": time.time(), "exercise": self.bus.exercise or "?",
+            contado = self.bus.mode.get("exercise") if self.bus.mode.get("state") == "running" else ""
+            rep = {"t": datetime.now().strftime("%H:%M:%S"), "epoch": time.time(),
+                   "exercise": contado or self.bus.exercise or "?",
                    "valid": campos.get("valid") == "1", "faults": int(campos.get("faults", 0)),
                    "ms": int(campos.get("duration_ms", 0))}
             self.bus.reps.append(rep)

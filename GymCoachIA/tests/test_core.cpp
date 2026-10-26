@@ -35,11 +35,16 @@ int main() {
   { Driver d(Exercise::Squat); d.cycle(170,80,60); assert(d.c.bad==1 && (d.events[0].faults&Torso)); ++checks; }
   { Driver d(Exercise::Curl); for(int i=0;i<100;++i)d.frame(170+(i%3-1)*2); assert(d.c.attempts==0); ++checks; }
   { Driver d(Exercise::Curl); d.hold(40); d.ramp(40,170); d.hold(170); assert(d.c.attempts==0); ++checks; }
-  { Driver d(Exercise::Curl); d.hold(170); d.ramp(170,40); for(int i=0;i<6;++i)d.frame(NAN,10,false); d.ramp(40,170); d.hold(170); assert(d.c.attempts==0); d.cycle(170,40); assert(d.c.good==1); ++checks; }
+  { Driver d(Exercise::Curl); d.hold(170); d.ramp(170,40); for(int i=0;i<12;++i)d.frame(NAN,10,false); d.ramp(40,170); d.hold(170); assert(d.c.attempts==0); d.cycle(170,40); assert(d.c.good==1); ++checks; }
   { Driver d(Exercise::Curl); d.hold(170); d.ramp(170,40); d.hold(40); assert(d.c.attempts==0); ++checks; }
   { Driver d(Exercise::Curl); d.hold(170); d.ramp(170,40,2); d.ramp(40,170,2); d.hold(170); assert(d.c.good==0); ++checks; }
   { Driver d(Exercise::Squat); d.time=UINT32_MAX-1200; d.cycle(170,80); assert(d.c.good==1); ++checks; }
-  { Driver d(Exercise::Curl); d.hold(170); d.ramp(170,40); d.time+=500; d.ramp(40,170); d.hold(170); assert(d.c.attempts==0); ++checks; }
+  { Driver d(Exercise::Curl); d.hold(170); d.ramp(170,40); d.time+=1100; d.ramp(40,170); d.hold(170); assert(d.c.attempts==0); ++checks; }
+  // Grove I2C speed: one frame every ~450 ms must still count reps (it used to reset every frame).
+  { RepCounter c; c.configure(Exercise::Curl, profile(Exercise::Curl)); uint32_t t = 0; int n = 0;
+    const float seq[] = {170,165,172,168,150,110,70,45,40,60,100,140,165,170,168,172,150,100,55,42,80,130,166,171,169};
+    for (float v : seq) { t += 450; auto e = c.update(v, 10, true, t); n += e.completed; }
+    assert(n == 2 && c.good == 2); ++checks; }
   { Resampler s; Angles a; a.elbow=0; a.knee=90; a.hip=150; a.torso=10;
     std::vector<uint32_t> ts; std::vector<float> v;
     auto emit=[&](uint32_t t,const float* x){ts.push_back(t);v.push_back(x[0]);};

@@ -71,14 +71,17 @@ inline int bestSide(const Pose& p, Exercise e, bool requireAll, uint8_t threshol
   }
   return result;
 }
+// Mean of the last frames. Two, not three: at ~3 fps three frames span over a second and shave
+// the bottom off a rep (a curl to 42 deg read as 59, flagged as incomplete range).
+constexpr unsigned SMOOTH_FRAMES = 2;
 class Mean3 {
-  float values_[3] = {}; unsigned count_ = 0, next_ = 0;
+  float values_[SMOOTH_FRAMES] = {}; unsigned count_ = 0, next_ = 0;
 public:
   void reset() { count_ = next_ = 0; }
   float push(float v) {
     if (!finite(v)) { reset(); return NAN; }
-    values_[next_] = v; next_ = (next_ + 1) % 3;
-    if (count_ < 3) ++count_;
+    values_[next_] = v; next_ = (next_ + 1) % SMOOTH_FRAMES;
+    if (count_ < SMOOTH_FRAMES) ++count_;
     float sum = 0; for (unsigned i = 0; i < count_; ++i) sum += values_[i];
     return sum / count_;
   }
@@ -108,6 +111,10 @@ struct RepEvent {
   uint32_t durationMs = 0, returnMs = 0;
 };
 enum class Phase : uint8_t { SeekRest, Ready, Outbound, Returning };
+// Over Grove I2C frames arrive every 300-650 ms, so "tracking lost" must allow more than one
+// frame gap (300 ms reset the counter on every frame and no rep was ever counted).
+constexpr uint32_t TRACKING_GAP_MS = 1000;
+constexpr float REST_TOLERANCE_DEG = 10;  // still enough to start; low fps makes angles jumpier
 
 // A complete excursion and return is required. Tracking loss discards only the
 // unfinished cycle. Thresholds are engineering defaults, not clinical judgments.
@@ -161,15 +168,15 @@ public:
     RepEvent event;
     if (!valid || !finite(raw)) {
       current = NAN;
-      if (seen_ && elapsed(now, lastSeen_) > 300) loseTracking();
+      if (seen_ && elapsed(now, lastSeen_) > TRACKING_GAP_MS) loseTracking();
       return event;
     }
-    if (seen_ && elapsed(now, lastSeen_) > 300) loseTracking();
+    if (seen_ && elapsed(now, lastSeen_) > TRACKING_GAP_MS) loseTracking();
     seen_ = true; lastSeen_ = now;
     current = smooth_.push(raw); const float q = p_.direction * current;
     if (phase_ == Phase::SeekRest) {
       if (!startOK(current)) { resting_ = false; return event; }
-      if (!resting_ || std::fabs(current - restValue_) > 5) {
+      if (!resting_ || std::fabs(current - restValue_) > REST_TOLERANCE_DEG) {
         resting_ = true; restSince_ = now; restValue_ = current;
       }
       if (elapsed(now, restSince_) >= p_.restHoldMs) { baseline_ = q; phase_ = Phase::Ready; }
