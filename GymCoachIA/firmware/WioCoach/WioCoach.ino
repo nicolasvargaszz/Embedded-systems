@@ -36,7 +36,7 @@ Exercise exercise = Exercise::Curl;
 int choice = 0, field = 0, sideChoice = -1;
 uint16_t goal = 10;
 float weightKg = 5;
-bool streaming = false, frameValid = false, summaryPending = false;
+bool streaming = false, frameValid = false, summaryPending = false, reportMode = true;
 uint32_t lastVision = 0, lastUI = 0, lastLoop = 0, setMs = 0, flashUntil = 0;
 uint8_t feedbackFaults = 0;
 float fps = 0;
@@ -57,6 +57,19 @@ const char* correction(uint8_t f) {
   if (f & coach::RestRange) return exercise == Exercise::Curl ? "ESTIRA EL BRAZO" : "VOLVE AL INICIO";
   if (f & coach::Fast) return "MAS LENTO";
   return "BIEN HECHO";
+}
+// "# mode <state> exercise=<label> good=<n> bad=<n> goal=<n>": lets the laptop panel show whether a set is
+// counting and which exercise AUTO locked. Sent on every change and when streaming starts.
+void logMode() {
+  static Mode last = Mode::Idle;
+  if (!streaming || !Serial || (!reportMode && mode == last)) return;
+  last = mode; reportMode = false;
+  static const char* const names[] = {"idle", "auto", "running", "paused", "done"};
+  static const char* const labels[] = {"curl", "sentadilla", "extension", "descanso"};
+  Serial.print("# mode "); Serial.print(names[static_cast<int>(mode)]);
+  Serial.print(" exercise="); Serial.print(labels[static_cast<int>(exercise)]);
+  Serial.print(" good="); Serial.print(counter.good); Serial.print(" bad="); Serial.print(counter.bad);
+  Serial.print(" goal="); Serial.println(goal);
 }
 void startSet(Exercise e) {
   if (summaryPending) return;
@@ -112,7 +125,7 @@ void handleKeys(uint32_t now) {
 }
 void handleCommand() {
   if (!strcmp(command, "CAM 1") || !strcmp(command, "CAM 0")) { vision.withImage = command[4] == '1'; return; }
-  if (!strcmp(command, "STREAM 1")) { streaming = true; classifier.reset(); vision.unlock(); Serial.println("# stream on; F,1,ms,side,codo,rodilla,cadera,torso"); }
+  if (!strcmp(command, "STREAM 1")) { streaming = true; classifier.reset(); vision.unlock(); Serial.println("# stream on; F,1,ms,side,codo,rodilla,cadera,torso"); reportMode = true; }
   else if (!strcmp(command, "STREAM 0")) streaming = false;
   else if (!strcmp(command, "SIDE AUTO")) { sideChoice = -1; vision.requestedSide = -1; vision.unlock(); }
   else if (!strcmp(command, "SIDE LEFT")) { sideChoice = 0; vision.requestedSide = 0; vision.unlock(); }
@@ -195,23 +208,38 @@ void drawUI(uint32_t now) {
   char line[80]; if (*classifier.label) snprintf(line, sizeof(line), "%.1f FPS | NOW: %s %.0f%%", fps, classifier.label, classifier.confidence * 100);
   else snprintf(line, sizeof(line), "%s | %.1f FPS | Q:%u", streaming ? "REC" : "POSE", fps, uplink.queued());
   lcd.drawString(line, 8, 23, 2);
-  drawSkeleton(); lcd.fillRect(146, 43, 174, 159, TFT_BLACK);
+  drawSkeleton();
   const bool editing = mode == Mode::Idle || mode == Mode::Done;
-  for (int row = 0; row < 4; ++row) {
-    lcd.setTextColor(editing && field == row ? TFT_YELLOW : TFT_WHITE, TFT_BLACK);
-    if (row == 0) snprintf(line, sizeof(line), "%s", choice == 3 && (mode == Mode::Idle || mode == Mode::AutoWait) ? "AUTO (EI)" : title(exercise));
-    if (row == 1) snprintf(line, sizeof(line), "Valid %u / %u", counter.good, goal);
-    if (row == 2) snprintf(line, sizeof(line), "Weight %.1f kg", weightKg);
-    if (row == 3) snprintf(line, sizeof(line), "Side %s", sideChoice < 0 ? "AUTO" : sideChoice == 0 ? "LEFT" : "RIGHT");
-    lcd.drawString(line, 150, 49 + row * 22, 2);
-  }
+  // Right panel. The big rep counter is redrawn with padding instead of cleared, so it never flickers.
+  lcd.fillRect(146, 43, 150, 22, TFT_BLACK);
+  lcd.setTextColor(editing && field == 0 ? TFT_YELLOW : TFT_WHITE, TFT_BLACK);
+  snprintf(line, sizeof(line), "%s", choice == 3 && (mode == Mode::Idle || mode == Mode::AutoWait) ? "AUTO (EI)" : title(exercise));
+  lcd.drawString(line, 150, 47, 2);
+  lcd.setTextDatum(TR_DATUM); lcd.setTextPadding(96);
+  lcd.setTextColor(counter.good >= goal ? TFT_GREEN : TFT_WHITE, TFT_BLACK);
+  snprintf(line, sizeof(line), "%u", counter.good); lcd.drawString(line, 246, 68, 7);
+  lcd.setTextDatum(TL_DATUM); lcd.setTextPadding(48);
+  lcd.setTextColor(editing && field == 1 ? TFT_YELLOW : TFT_LIGHTGREY, TFT_BLACK);
+  snprintf(line, sizeof(line), "/%u", goal); lcd.drawString(line, 248, 90, 4);
+  lcd.setTextPadding(0);
+  lcd.fillRect(146, 120, 150, 82, TFT_BLACK);
+  lcd.setTextColor(editing && field == 2 ? TFT_YELLOW : TFT_WHITE, TFT_BLACK);
+  snprintf(line, sizeof(line), "Weight %.1f kg", weightKg); lcd.drawString(line, 150, 122, 2);
+  lcd.setTextColor(editing && field == 3 ? TFT_YELLOW : TFT_WHITE, TFT_BLACK);
+  snprintf(line, sizeof(line), "Side %s", sideChoice < 0 ? "AUTO" : sideChoice == 0 ? "LEFT" : "RIGHT"); lcd.drawString(line, 150, 141, 2);
   lcd.setTextColor(TFT_WHITE, TFT_BLACK);
   const float a = vision.value.primary(exercise);
-  if (coach::finite(a)) snprintf(line, sizeof(line), "Angle %.0f deg", a); else snprintf(line, sizeof(line), "Angle --");
-  lcd.drawString(line, 150, 141, 2);
-  snprintf(line, sizeof(line), "Errors %u | %lu s", counter.bad, static_cast<unsigned long>(setMs / 1000));
-  lcd.drawString(line, 150, 163, 2);
-  lcd.drawString(mode == Mode::Running ? "RUNNING" : mode == Mode::Paused ? "PAUSED" : mode == Mode::AutoWait ? "IDENTIFYING" : "READY", 150, 184, 2);
+  if (coach::finite(a)) snprintf(line, sizeof(line), "%.0f deg | Err %u", a, counter.bad); else snprintf(line, sizeof(line), "-- deg | Err %u", counter.bad);
+  lcd.drawString(line, 150, 162, 2);
+  snprintf(line, sizeof(line), "%s %lus", mode == Mode::Running ? "RUNNING" : mode == Mode::Paused ? "PAUSED" : mode == Mode::AutoWait ? "IDENTIFYING" : "READY", static_cast<unsigned long>(setMs / 1000));
+  lcd.drawString(line, 150, 183, 2);
+  // Range-of-motion bar: fills toward the target; green once the rep reaches it.
+  const float prog = mode == Mode::Running && frameValid ? constrain(counter.progress(), 0.0f, 1.0f) : 0;
+  const int barH = 150, fillH = prog * (barH - 2);
+  lcd.drawRect(300, 47, 16, barH, TFT_DARKGREY);
+  lcd.fillRect(301, 48, 14, barH - 2 - fillH, TFT_BLACK);
+  if (fillH > 0) lcd.fillRect(301, 47 + barH - 1 - fillH, 14, fillH, prog >= 0.99f ? TFT_GREEN : TFT_CYAN);
+  lcd.drawFastHLine(296, 48, 24, TFT_GREEN);
   const bool flashing = flashUntil && static_cast<int32_t>(flashUntil - now) > 0;
   const char* message = notice;
   if (!vision.available) message = "Check Vision AI / left Grove";
@@ -247,6 +275,7 @@ void loop() {
   readCommands(); handleKeys(now);
   if (summaryPending && uplink.enqueue(exercise, counter.good, counter.bad, goal, weightKg, setMs, counter.good >= goal)) summaryPending = false;
   if (now - lastVision >= settings::VISION_PERIOD_MS) readPose();
+  logMode();
   now = millis();
   const bool flash = flashUntil && static_cast<int32_t>(flashUntil - now) > 0;
   if (mode == Mode::Running || flash) {

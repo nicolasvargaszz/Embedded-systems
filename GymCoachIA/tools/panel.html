@@ -121,7 +121,7 @@ const COLORS = ["#38bdf8", "#fb923c", "#a78bfa", "#8a94a3"];
 const WINDOW = 20;
 
 const $ = id => document.getElementById(id);
-let frames = [], reps = [], exercise = "", firstRep = null, lastFull = Date.now();
+let frames = [], reps = [], exercise = "", firstRep = null, lastFull = Date.now(), wio = {};
 
 $("bars").innerHTML = ORDER.map(k =>
   `<div class="bar" id="b-${k}"><span>${NAMES[k]}</span><div class="track"><div class="fill"></div></div><span>—</span></div>`).join("");
@@ -152,7 +152,8 @@ function render() {
   $("valid").textContent = good.length;
   $("errors").textContent = bad;
   $("tech").textContent = reps.length ? Math.round(100 * good.length / reps.length) + "%" : "—";
-  $("hint").style.display = reps.length ? "none" : "";
+  $("hint").innerHTML = wioHint();
+  $("hint").style.display = $("hint").innerHTML ? "" : "none";
   const last = reps[reps.length - 1];
   if (last) {
     $("last").textContent = last.valid ? "Good rep" : faultText(last.faults);
@@ -220,6 +221,23 @@ function draw() {
   requestAnimationFrame(draw);
 }
 
+// What the Wio's rep counter is doing (it only counts inside a set, and AUTO locks one exercise).
+function wioHint() {
+  const name = NAMES[wio.exercise] || "the exercise";
+  const s = wio.state;
+  if (s === "running") {
+    if (exercise && exercise !== "descanso" && wio.exercise && exercise !== wio.exercise)
+      return `The Wio is counting <b>${name}</b>. To switch, press the stick to end the set, then press it again.`;
+    return `Counting <b>${name}</b> on the Wio: hold the start position, then do full reps.`;
+  }
+  if (s === "auto") return "Identifying the exercise: start moving and the Wio picks it.";
+  if (s === "paused") return "Set paused on the Wio: press B to continue.";
+  if (s === "done") return "Set finished. Press the stick on the Wio to start the next one.";
+  if (s === "idle" || !reps.length)
+    return "Reps count once a set starts: on the Wio pick <b>AUTO (EI)</b>, press the stick and hold the start position.";
+  return "";
+}
+
 // Which joints the camera keeps missing (last 3 s), so the fix is concrete: angles are elbow, knee, hip, torso.
 function framingWarning(now) {
   const recent = frames.filter(f => now - f.t <= 3);
@@ -246,7 +264,8 @@ es.onmessage = m => {
   const e = JSON.parse(m.data);
   if (e.type === "frame") onFrame(e);
   else if (e.type === "ei") showProbs(e.probs);
-  else if (e.type === "exercise") showExercise(e.label);
+  else if (e.type === "exercise") { showExercise(e.label); render(); }
+  else if (e.type === "mode") { wio = e; render(); }
   else if (e.type === "rep") { reps.push(e); firstRep ??= e.epoch; render(); }
   else if (e.type === "reps") { reps = e.items; firstRep = reps.length ? reps[0].epoch : null;
                                 if (!reps.length) $("clock").textContent = "00:00"; render(); }

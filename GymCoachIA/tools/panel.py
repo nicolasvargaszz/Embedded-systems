@@ -33,6 +33,7 @@ class Bus:
         self.reps: list[dict] = []
         self.status = {"ok": False, "msg": "Looking for the Wio..."}
         self.exercise = ""
+        self.mode: dict = {}
 
     def emit(self, kind: str, **data) -> None:
         with self.cond:
@@ -98,6 +99,12 @@ class Lector:
             except ValueError: return
             self.bus.emit("ei", probs=probs)
             self.estabilizar(probs)
+        elif linea.startswith("# mode "):
+            partes = linea[7:].split()
+            datos = dict(par.split("=") for par in partes[1:] if "=" in par)
+            self.bus.mode = {"state": partes[0] if partes else "", "exercise": datos.get("exercise", ""),
+                             "good": int(datos.get("good", 0)), "goal": int(datos.get("goal", 0))}
+            self.bus.emit("mode", **self.bus.mode)
         elif linea.startswith("# rep "):
             campos = dict(par.split("=") for par in linea[6:].split() if "=" in par)
             rep = {"t": datetime.now().strftime("%H:%M:%S"), "epoch": time.time(), "exercise": self.bus.exercise or "?",
@@ -142,7 +149,7 @@ def servidor(bus: Bus, puerto: int, lector: Lector) -> ThreadingHTTPServer:
                 self.send_header("Cache-Control", "no-cache"); self.end_headers()
                 seq = bus.seq
                 inicio = [{"type": "reps", "items": bus.reps}, {"type": "status", **bus.status},
-                          {"type": "exercise", "label": bus.exercise}]
+                          {"type": "exercise", "label": bus.exercise}, {"type": "mode", **bus.mode}]
                 try:
                     for e in inicio: self.wfile.write(f"data: {json.dumps(e)}\n\n".encode())
                     self.wfile.flush()
