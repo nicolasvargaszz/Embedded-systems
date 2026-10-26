@@ -118,6 +118,19 @@ los LEDs y el RGB está en la tabla de `GymCoachIA/README.md`; probalo antes con
 `python3 tools/build.py wio --self-test --no-servo --upload PUERTO`. Para el mid demo se compila
 siempre con `--no-servo` (ver "Estado actual" abajo).
 
+### Panel en la compu
+
+Con el Wio corriendo y conectado por USB:
+
+```bash
+~/.venvs/gym-coach/bin/python GymCoachIA/tools/panel.py
+```
+
+Abre `http://localhost:8000` con el ejercicio que detecta Edge Impulse, las reps válidas y con
+error, el gráfico de ángulos con la zona objetivo y el resumen de la sesión. Anuncia el ejercicio
+en voz alta (`--sin-voz` para apagarlo), se reconecta solo si el Wio se cae y guarda cada sesión
+en `GymCoachIA/data/sesiones/*.csv`. No necesita internet.
+
 ### Si algo falla
 
 | Síntoma | Solución |

@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gym Coach IA</title>
+<style>
+  :root {
+    --bg: #0f1216; --card: #171b21; --line: #262c35; --text: #eef1f4; --muted: #8a94a3;
+    --green: #2ee59d; --cyan: #38bdf8; --orange: #fb923c; --violet: #a78bfa; --red: #f87171; --yellow: #facc15;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  header { display: flex; align-items: center; gap: 16px; padding: 14px 24px; border-bottom: 1px solid var(--line); }
+  h1 { margin: 0; font-size: 22px; letter-spacing: .06em; }
+  h1 span { color: var(--green); }
+  .pill { padding: 4px 12px; border-radius: 999px; font-size: 14px; background: #3a1f22; color: var(--red); }
+  .pill.ok { background: #12301f; color: var(--green); }
+  .grow { flex: 1; }
+  .meta { color: var(--muted); font-variant-numeric: tabular-nums; }
+  button { background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 8px;
+           padding: 6px 14px; font: inherit; cursor: pointer; }
+  button:hover { border-color: var(--muted); }
+  #banner { display: none; margin: 16px 24px 0; padding: 12px 16px; border-radius: 10px;
+            background: #3b2a0d; color: var(--yellow); font-size: 18px; }
+  main { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 16px; padding: 16px 24px 24px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; min-width: 0; }
+  .label { color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: .08em; }
+  .big { font-size: 56px; font-weight: 700; line-height: 1.1; margin: 6px 0 4px; }
+  .huge { font-size: 96px; font-weight: 800; line-height: 1; margin: 8px 0; font-variant-numeric: tabular-nums; color: var(--green); }
+  .sub { color: var(--muted); font-size: 18px; font-variant-numeric: tabular-nums; }
+  .bars { margin-top: 14px; display: grid; gap: 8px; }
+  .bar { display: grid; grid-template-columns: 110px 1fr 48px; align-items: center; gap: 10px; font-size: 15px; }
+  .track { height: 12px; background: #0b0e12; border-radius: 6px; overflow: hidden; }
+  .fill { height: 100%; width: 0; background: var(--cyan); border-radius: 6px; transition: width .2s; }
+  .bar.top .fill { background: var(--green); }
+  .bar span:last-child { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+  #last { font-size: 40px; font-weight: 700; margin: 10px 0 4px; }
+  #last.good { color: var(--green); } #last.bad { color: var(--red); }
+  .wide { grid-column: 1 / -1; }
+  .chart-head { display: flex; flex-wrap: wrap; gap: 18px; align-items: baseline; margin-bottom: 8px; }
+  .key { font-size: 15px; font-variant-numeric: tabular-nums; }
+  .key i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+  canvas { width: 100%; height: 260px; display: block; }
+  table { width: 100%; border-collapse: collapse; font-size: 16px; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 7px 6px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 500; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; }
+  .log { max-height: 280px; overflow-y: auto; }
+  .ok-t { color: var(--green); } .bad-t { color: var(--red); }
+  .empty { color: var(--muted); padding: 14px 0; }
+  .two { grid-column: span 2; }
+  @media (max-width: 900px) {
+    main { grid-template-columns: 1fr; padding: 16px; }
+    .two { grid-column: auto; }
+    header { flex-wrap: wrap; padding: 12px 16px; }
+    .huge { font-size: 72px; } .big { font-size: 42px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>GYM COACH <span>IA</span></h1>
+  <span id="status" class="pill">Connecting…</span>
+  <span class="grow"></span>
+  <span class="meta" id="fps">— fps</span>
+  <span class="meta" id="clock">00:00</span>
+  <button id="reset" title="Start a new session on this page">New session</button>
+</header>
+<div id="banner">Step back: the camera can't see your whole body. Stand sideways, 2–3 m away.</div>
+<main>
+  <section class="card">
+    <div class="label">Detected exercise · Edge Impulse on the Wio</div>
+    <div class="big" id="exercise">—</div>
+    <div class="bars" id="bars"></div>
+  </section>
+  <section class="card">
+    <div class="label">Valid reps</div>
+    <div class="huge" id="valid">0</div>
+    <div class="sub"><span id="errors">0</span> with errors · technique <span id="tech">—</span></div>
+  </section>
+  <section class="card">
+    <div class="label">Last rep</div>
+    <div id="last">—</div>
+    <div class="sub" id="lastinfo">Waiting for the first rep</div>
+  </section>
+  <section class="card wide">
+    <div class="chart-head">
+      <div class="label">Joint angles · last 20 s</div>
+      <span class="key"><i style="background:var(--cyan)"></i>Elbow <b id="v0">—</b></span>
+      <span class="key"><i style="background:var(--orange)"></i>Knee <b id="v1">—</b></span>
+      <span class="key"><i style="background:var(--violet)"></i>Hip <b id="v2">—</b></span>
+      <span class="key"><i style="background:var(--muted)"></i>Torso <b id="v3">—</b></span>
+      <span class="key" id="targetkey"></span>
+    </div>
+    <canvas id="chart"></canvas>
+  </section>
+  <section class="card">
+    <div class="label">Session summary</div>
+    <table><thead><tr><th>Exercise</th><th>Valid</th><th>Errors</th><th>Technique</th><th>Avg time</th></tr></thead>
+      <tbody id="summary"></tbody></table>
+    <div class="empty" id="summaryempty">No reps yet</div>
+  </section>
+  <section class="card two">
+    <div class="label">Rep log</div>
+    <div class="log"><table><thead><tr><th>Time</th><th>Exercise</th><th>Result</th><th>Duration</th></tr></thead>
+      <tbody id="log"></tbody></table></div>
+    <div class="empty" id="logempty">Each rep the Wio counts shows up here</div>
+  </section>
+</main>
+<script>
+const NAMES = { curl: "Bicep curl", sentadilla: "Squat", extension: "Leg extension", descanso: "Rest", "?": "—" };
+const ORDER = ["curl", "sentadilla", "extension", "descanso"];
+const FAULTS = [[8, "Chest up"], [1, "Incomplete range"], [2, "Did not return to start"], [4, "Too fast"]];
+// Same thresholds as the Wio (CoachCore.h profile): which angle counts and where the rep must reach.
+const PROFILE = { curl: { angle: 0, start: 140, target: 55 }, sentadilla: { angle: 1, start: 160, target: 100 },
+                  extension: { angle: 1, start: 105, target: 155 } };
+const COLORS = ["#38bdf8", "#fb923c", "#a78bfa", "#8a94a3"];
+const WINDOW = 20;
+
+const $ = id => document.getElementById(id);
+let frames = [], reps = [], exercise = "", firstRep = null, lastFull = Date.now();
+
+$("bars").innerHTML = ORDER.map(k =>
+  `<div class="bar" id="b-${k}"><span>${NAMES[k]}</span><div class="track"><div class="fill"></div></div><span>—</span></div>`).join("");
+
+function faultText(f) { return FAULTS.filter(([bit]) => f & bit).map(([, t]) => t).join(", ") || "Error"; }
+function secs(ms) { return (ms / 1000).toFixed(1) + " s"; }
+
+function showProbs(probs) {
+  const top = Object.keys(probs).reduce((a, b) => probs[a] >= probs[b] ? a : b);
+  for (const k of ORDER) {
+    const el = $("b-" + k); if (!el) continue;
+    const p = probs[k] ?? 0;
+    el.querySelector(".fill").style.width = (p * 100).toFixed(0) + "%";
+    el.lastElementChild.textContent = (p * 100).toFixed(0) + "%";
+    el.classList.toggle("top", k === top);
+  }
+}
+
+function showExercise(label) {
+  exercise = label;
+  $("exercise").textContent = NAMES[label] || "—";
+  const p = PROFILE[label];
+  $("targetkey").innerHTML = p ? `<i style="background:var(--green)"></i>Target ${p.target}° · start ${p.start}°` : "";
+}
+
+function render() {
+  const good = reps.filter(r => r.valid), bad = reps.length - good.length;
+  $("valid").textContent = good.length;
+  $("errors").textContent = bad;
+  $("tech").textContent = reps.length ? Math.round(100 * good.length / reps.length) + "%" : "—";
+  const last = reps[reps.length - 1];
+  if (last) {
+    $("last").textContent = last.valid ? "Good rep" : faultText(last.faults);
+    $("last").className = last.valid ? "good" : "bad";
+    $("lastinfo").textContent = `${NAMES[last.exercise] || "—"} · ${secs(last.ms)} · ${last.t}`;
+  } else {
+    $("last").textContent = "—"; $("last").className = ""; $("lastinfo").textContent = "Waiting for the first rep";
+  }
+  $("log").innerHTML = reps.slice().reverse().map(r => `<tr><td>${r.t}</td><td>${NAMES[r.exercise] || "—"}</td>` +
+    `<td class="${r.valid ? "ok-t" : "bad-t"}">${r.valid ? "Valid" : faultText(r.faults)}</td><td>${secs(r.ms)}</td></tr>`).join("");
+  $("logempty").style.display = reps.length ? "none" : "";
+  const by = {};
+  for (const r of reps) (by[r.exercise] ??= []).push(r);
+  $("summary").innerHTML = Object.entries(by).map(([k, rs]) => {
+    const ok = rs.filter(r => r.valid);
+    const avg = ok.length ? secs(ok.reduce((s, r) => s + r.ms, 0) / ok.length) : "—";
+    return `<tr><td>${NAMES[k] || k}</td><td>${ok.length}</td><td>${rs.length - ok.length}</td>` +
+      `<td>${Math.round(100 * ok.length / rs.length)}%</td><td>${avg}</td></tr>`;
+  }).join("");
+  $("summaryempty").style.display = reps.length ? "none" : "";
+}
+
+function draw() {
+  const c = $("chart"), dpr = window.devicePixelRatio || 1;
+  const w = c.clientWidth, h = c.clientHeight;
+  if (c.width !== w * dpr || c.height !== h * dpr) { c.width = w * dpr; c.height = h * dpr; }
+  const g = c.getContext("2d");
+  g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+  const left = 40, right = w - 8, top = 8, bottom = h - 22;
+  const now = Date.now() / 1000;
+  const X = t => right - (now - t) / WINDOW * (right - left), Y = a => bottom - a / 180 * (bottom - top);
+  g.font = "12px -apple-system, sans-serif"; g.fillStyle = "#8a94a3"; g.strokeStyle = "#262c35"; g.lineWidth = 1;
+  for (let a = 0; a <= 180; a += 45) {
+    g.beginPath(); g.moveTo(left, Y(a)); g.lineTo(right, Y(a)); g.stroke();
+    g.fillText(a + "°", 4, Y(a) + 4);
+  }
+  for (let s = 0; s <= WINDOW; s += 5) g.fillText(s ? `-${s}s` : "now", X(now - s) - 12, h - 4);
+  const p = PROFILE[exercise];
+  if (p) {
+    g.setLineDash([6, 6]); g.lineWidth = 2;
+    g.strokeStyle = "#2ee59d"; g.beginPath(); g.moveTo(left, Y(p.target)); g.lineTo(right, Y(p.target)); g.stroke();
+    g.strokeStyle = "#4b5563"; g.beginPath(); g.moveTo(left, Y(p.start)); g.lineTo(right, Y(p.start)); g.stroke();
+    g.setLineDash([]);
+  }
+  frames = frames.filter(f => now - f.t <= WINDOW + 1);
+  for (let i = 3; i >= 0; i--) {
+    const main = p && p.angle === i;
+    g.strokeStyle = COLORS[i]; g.lineWidth = main ? 4 : 2; g.globalAlpha = p && !main ? 0.45 : 1;
+    g.beginPath(); let pen = false, prev = null;
+    for (const f of frames) {
+      const a = f.a[i];
+      if (a == null || (prev && f.t - prev > 1.5)) { pen = false; if (a == null) continue; }
+      if (pen) g.lineTo(X(f.t), Y(a)); else { g.moveTo(X(f.t), Y(a)); pen = true; }
+      prev = f.t;
+    }
+    g.stroke();
+  }
+  g.globalAlpha = 1;
+  if (firstRep) {
+    const s = Math.floor(Date.now() / 1000 - firstRep);
+    $("clock").textContent = String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0");
+  }
+  $("banner").style.display = frames.length && Date.now() - lastFull > 1500 ? "block" : "none";
+  requestAnimationFrame(draw);
+}
+
+function onFrame(f) {
+  // the Wio's clock is not ours: stamp frames with the browser time
+  f.t = Date.now() / 1000;
+  frames.push(f);
+  if (f.a.every(v => v != null)) lastFull = Date.now();
+  f.a.forEach((v, i) => $("v" + i).textContent = v == null ? "—" : Math.round(v) + "°");
+  const recent = frames.filter(x => f.t - x.t <= 3);
+  if (recent.length > 1) $("fps").textContent = ((recent.length - 1) / (f.t - recent[0].t)).toFixed(1) + " fps";
+}
+
+const es = new EventSource("/events");
+es.onmessage = m => {
+  const e = JSON.parse(m.data);
+  if (e.type === "frame") onFrame(e);
+  else if (e.type === "ei") showProbs(e.probs);
+  else if (e.type === "exercise") showExercise(e.label);
+  else if (e.type === "rep") { reps.push(e); firstRep ??= e.epoch; render(); }
+  else if (e.type === "reps") { reps = e.items; firstRep = reps.length ? reps[0].epoch : null;
+                                if (!reps.length) $("clock").textContent = "00:00"; render(); }
+  else if (e.type === "status") { $("status").textContent = e.msg; $("status").className = "pill" + (e.ok ? " ok" : ""); }
+};
+es.onerror = () => { $("status").textContent = "Panel stopped: run tools/panel.py"; $("status").className = "pill"; };
+$("reset").onclick = () => fetch("/reset", { method: "POST" });
+render();
+requestAnimationFrame(draw);
+</script>
+</body>
+</html>

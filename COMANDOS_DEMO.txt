@@ -1,0 +1,51 @@
+GYM COACH IA - COMANDOS PARA EL MID DEMO (no necesitan internet)
+================================================================
+
+0) Ver en que puerto esta el Wio (hoy fue /dev/cu.usbmodem101; si cambia, reemplazalo abajo)
+
+   ls /dev/cu.usbmodem*
+
+
+1) (Opcional) Probar salidas: RGB, LEDs y buzzer, sin camara
+
+   python3 ~/Desktop/Code/embedded/GymCoachIA/tools/build.py wio --self-test --no-servo --upload /dev/cu.usbmodem101
+
+
+2) Cargar el firmware del demo (modelo de Edge Impulse, sin servo)
+
+   python3 ~/Desktop/Code/embedded/GymCoachIA/tools/build.py wio --ei --no-servo --upload /dev/cu.usbmodem101
+
+   En el Wio: con el stick elegir AUTO (EI) y apretar.
+
+
+3) PANEL EN LA COMPU + voz en ingles (cerrar antes el Arduino IDE).
+   Abre solo el navegador en http://localhost:8000: ejercicio detectado, reps, errores,
+   grafico de angulos y resumen de la sesion. Encuentra el Wio solo y se reconecta si se cae.
+   Guarda las reps en GymCoachIA/data/sesiones/*.csv.  Boton "New session" = empezar de cero.
+
+   ~/.venvs/gym-coach/bin/python ~/Desktop/Code/embedded/GymCoachIA/tools/panel.py
+
+   Sin voz: agregar --sin-voz.   Cortar: Ctrl+C
+
+3b) Solo voz, sin panel (lo de antes). Para acomodarse en el encuadre agregar --camara
+    y despues cortarlo, porque mandar la imagen pone lento al Wio.
+
+   ~/.venvs/gym-coach/bin/python ~/Desktop/Code/embedded/GymCoachIA/tools/probar_modelo.py --en-vivo --port /dev/cu.usbmodem101
+
+
+PLAN B - Vision AI enchufada directo a la compu por USB-C (sin Wio)
+
+   ~/.venvs/gym-coach/bin/python ~/Desktop/Code/embedded/proyecto/coach_pc.py
+
+
+SI ALGO FALLA
+- "can't open file": usar los comandos con la ruta completa, como estan aca.
+- Puerto ocupado: cerrar Arduino IDE u otra terminal que tenga el script abierto.
+- No sube el firmware: deslizar 2 veces rapido el interruptor hacia abajo y repetir el paso 2.
+- Camara sin imagen / no detecta nada:
+    * Grove al puerto IZQUIERDO del Wio, bien metido en las dos puntas (o cambiar el cable).
+    * Cinta de la camara derecha, hasta el fondo y con la trabita cerrada (con el USB desenchufado).
+    * Desenchufar el USB 5 s y volver a enchufar.
+- "la camara no ve las 6 articulaciones": ponerse de COSTADO, a 2-3 m, cuerpo entero en cuadro.
+
+Tener grabado el video del demo por si falla en vivo. 8 minutos, sin pasarse.
