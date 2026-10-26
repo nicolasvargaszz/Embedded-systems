@@ -45,7 +45,10 @@ HUESOS = [(5, 7), (7, 9), (6, 8), (8, 10), (5, 6), (5, 11), (6, 12), (11, 12), (
 def mostrar(jpeg_b64: str, puntos: list, texto: str, completo: bool) -> None:
     """Camera window: the Vision AI frame, upscaled, with skeleton and the live prediction."""
     import base64, cv2, numpy as np
-    img = cv2.imdecode(np.frombuffer(base64.b64decode(jpeg_b64), np.uint8), cv2.IMREAD_COLOR)
+    try:  # the Vision AI sometimes sends an empty or cut frame: skip it
+        img = cv2.imdecode(np.frombuffer(base64.b64decode(jpeg_b64), np.uint8), cv2.IMREAD_COLOR)
+    except (ValueError, cv2.error):
+        return
     if img is None: return
     f = 3
     img = cv2.resize(img, None, fx=f, fy=f)
