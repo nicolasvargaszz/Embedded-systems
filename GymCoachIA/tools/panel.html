@@ -47,6 +47,7 @@
   th, td { text-align: left; padding: 7px 6px; border-bottom: 1px solid var(--line); }
   th { color: var(--muted); font-weight: 500; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; }
   .log { max-height: 280px; overflow-y: auto; }
+  .hint { margin-top: 14px; padding: 10px 12px; border-radius: 8px; background: #10263a; color: var(--cyan); font-size: 15px; }
   .ok-t { color: var(--green); } .bad-t { color: var(--red); }
   .empty { color: var(--muted); padding: 14px 0; }
   .two { grid-column: span 2; }
@@ -67,7 +68,7 @@
   <span class="meta" id="clock">00:00</span>
   <button id="reset" title="Start a new session on this page">New session</button>
 </header>
-<div id="banner">Step back: the camera can't see your whole body. Stand sideways, 2–3 m away.</div>
+<div id="banner"></div>
 <main>
   <section class="card">
     <div class="label">Detected exercise · Edge Impulse on the Wio</div>
@@ -78,6 +79,7 @@
     <div class="label">Valid reps</div>
     <div class="huge" id="valid">0</div>
     <div class="sub"><span id="errors">0</span> with errors · technique <span id="tech">—</span></div>
+    <div class="hint" id="hint">Reps count once a set starts: on the Wio pick <b>AUTO (EI)</b>, press the stick and hold the start position.</div>
   </section>
   <section class="card">
     <div class="label">Last rep</div>
@@ -150,6 +152,7 @@ function render() {
   $("valid").textContent = good.length;
   $("errors").textContent = bad;
   $("tech").textContent = reps.length ? Math.round(100 * good.length / reps.length) + "%" : "—";
+  $("hint").style.display = reps.length ? "none" : "";
   const last = reps[reps.length - 1];
   if (last) {
     $("last").textContent = last.valid ? "Good rep" : faultText(last.faults);
@@ -212,8 +215,20 @@ function draw() {
     const s = Math.floor(Date.now() / 1000 - firstRep);
     $("clock").textContent = String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0");
   }
-  $("banner").style.display = frames.length && Date.now() - lastFull > 1500 ? "block" : "none";
+  const warning = framingWarning(now);
+  $("banner").textContent = warning; $("banner").style.display = warning ? "block" : "none";
   requestAnimationFrame(draw);
+}
+
+// Which joints the camera keeps missing (last 3 s), so the fix is concrete: angles are elbow, knee, hip, torso.
+function framingWarning(now) {
+  const recent = frames.filter(f => now - f.t <= 3);
+  if (recent.length < 4 || Date.now() - lastFull < 1500) return "";
+  if (recent.every(f => f.side < 0)) return "The camera can't see anyone: stand sideways, 2–3 m away, whole body in the frame.";
+  const missing = i => recent.filter(f => f.a[i] == null).length / recent.length;
+  if (missing(1) > 0.4) return "The camera can't see your legs: move it back or lower so your feet are in the frame.";
+  if (missing(0) > 0.4) return "The camera can't see your arm: keep the arm closer to the camera visible.";
+  return "Step back: the camera can't see your whole body. Stand sideways, 2–3 m away.";
 }
 
 function onFrame(f) {

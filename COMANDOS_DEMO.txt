@@ -47,5 +47,9 @@ SI ALGO FALLA
     * Cinta de la camara derecha, hasta el fondo y con la trabita cerrada (con el USB desenchufado).
     * Desenchufar el USB 5 s y volver a enchufar.
 - "la camara no ve las 6 articulaciones": ponerse de COSTADO, a 2-3 m, cuerpo entero en cuadro.
+- Solo reconoce el curl: la camara no ve las piernas. Alejarla o bajarla hasta que se vean
+  los PIES (la rodilla necesita cadera, rodilla y tobillo). El panel avisa cual parte falta.
+- El panel no suma reps: el Wio cuenta solo con una serie iniciada. En el Wio elegir
+  AUTO (EI), APRETAR el stick, y quedarse quieto en la posicion inicial un momento.
 
 Tener grabado el video del demo por si falla en vivo. 8 minutos, sin pasarse.
