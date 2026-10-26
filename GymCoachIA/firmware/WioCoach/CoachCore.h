@@ -92,16 +92,16 @@ struct Profile {
   float target;          // required far position
   float direction;      // +1 = extension; -1 = flexion
   float maxTorso = 45;
-  float depart = 12, reversal = 12, minimumTravel = 25;
-  uint32_t minimumCycleMs = 500, minimumGoodMs = 700;  // ~3 fps: a 1 s rep often measures 0.95 s
+  // Lenient for a ~3 fps camera: it often misses the deepest and the resting frame, and timing is coarse.
+  float depart = 10, reversal = 10, minimumTravel = 20;
+  uint32_t minimumCycleMs = 400, minimumGoodMs = 500;
   uint32_t restHoldMs = 350, maximumCycleMs = 15000;
 };
 inline Profile profile(Exercise e) {
   Profile p;
-  // Lenient on purpose: at ~3 fps the camera often misses the deepest and the resting frame.
-  if (e == Exercise::Curl) { p.startGate = 115; p.goodRest = 130; p.target = 70; p.direction = -1; }
-  else if (e == Exercise::Squat) { p.startGate = 145; p.goodRest = 155; p.target = 115; p.direction = -1; }
-  else { p.startGate = 115; p.goodRest = 120; p.target = 145; p.direction = 1; }
+  if (e == Exercise::Curl) { p.startGate = 110; p.goodRest = 120; p.target = 90; p.direction = -1; }
+  else if (e == Exercise::Squat) { p.startGate = 140; p.goodRest = 145; p.target = 135; p.direction = -1; }
+  else { p.startGate = 125; p.goodRest = 130; p.target = 135; p.direction = 1; }
   return p;
 }
 enum Fault : uint8_t { None = 0, Range = 1, RestRange = 2, Fast = 4, Torso = 8 };
@@ -125,6 +125,7 @@ class RepCounter {
   Phase phase_ = Phase::SeekRest;
   Mean3 smooth_;
   float baseline_ = 0, peak_ = 0, back_ = 0, lo_ = 180, hi_ = 0, torso_ = 0;
+  float rawPeak_ = 0;  // deepest raw (unsmoothed) frame: range is judged on it, one good frame is enough
   uint32_t start_ = 0, turn_ = 0, lastMotion_ = 0, lastSeen_ = 0;
   bool seen_ = false, resting_ = false;
   uint32_t restSince_ = 0;
@@ -138,7 +139,7 @@ class RepCounter {
   }
   void beginCycle(float a, float t, uint32_t now) {
     phase_ = Phase::Outbound; start_ = turn_ = lastMotion_ = now;
-    peak_ = p_.direction * a; lo_ = hi_ = p_.direction * baseline_; torso_ = 0;
+    peak_ = rawPeak_ = p_.direction * a; lo_ = hi_ = p_.direction * baseline_; torso_ = 0;
     track(a, t);
   }
   RepEvent finish(uint32_t now) {
@@ -146,10 +147,10 @@ class RepCounter {
     e.minimum = lo_; e.maximum = hi_; e.maxTorso = torso_;
     if (e.durationMs < p_.minimumCycleMs) { e.rejected = true; e.faults = Fast; return e; }
     e.completed = true;
-    const float farAngle = p_.direction * peak_, restAngle = p_.direction * back_;
+    const float farAngle = p_.direction * std::fmax(peak_, rawPeak_), restAngle = p_.direction * back_;
     if ((p_.direction < 0 && farAngle > p_.target) || (p_.direction > 0 && farAngle < p_.target)) e.faults |= Range;
     if (!returnOK(restAngle) || !returnOK(p_.direction * baseline_)) e.faults |= RestRange;
-    if (e.durationMs < p_.minimumGoodMs || (exercise_ == Exercise::Extension && e.returnMs < 400)) e.faults |= Fast;
+    if (e.durationMs < p_.minimumGoodMs || (exercise_ == Exercise::Extension && e.returnMs < 200)) e.faults |= Fast;
     if (exercise_ == Exercise::Squat && torso_ > p_.maxTorso) e.faults |= Torso;
     e.valid = e.faults == None; return e;
   }
@@ -190,6 +191,7 @@ public:
     }
     if (elapsed(now, start_) > p_.maximumCycleMs) { loseTracking(); return event; }
     track(current, torso);
+    if (p_.direction * raw > rawPeak_) rawPeak_ = p_.direction * raw;
     if (phase_ == Phase::Outbound) {
       if (q > peak_) { peak_ = q; turn_ = now; }
       if (peak_ - q >= p_.reversal && peak_ - baseline_ >= p_.minimumTravel) {

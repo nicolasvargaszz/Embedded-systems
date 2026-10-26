@@ -29,9 +29,9 @@ int main() {
     d.cycle(rest,far); d.cycle(rest,far);
     assert(d.c.good==2 && d.c.bad==0 && d.c.attempts==2); ++checks;
   }
-  { Driver d(Exercise::Squat); d.cycle(170,125); assert(d.c.good==0&&d.c.bad==1); assert(d.events[0].faults&Range); ++checks; }
-  { Driver d(Exercise::Curl); d.cycle(122,40); assert(d.c.good==0&&d.c.bad==1); assert(d.events[0].faults&RestRange); ++checks; }
-  { Driver d(Exercise::Extension); d.cycle(90,135); assert(d.c.good==0&&d.c.bad==1); ++checks; }
+  { Driver d(Exercise::Squat); d.cycle(170,145); assert(d.c.good==0&&d.c.bad==1); assert(d.events[0].faults&Range); ++checks; }
+  { Driver d(Exercise::Curl); d.cycle(115,40); assert(d.c.good==0&&d.c.bad==1); assert(d.events[0].faults&RestRange); ++checks; }
+  { Driver d(Exercise::Extension); d.cycle(90,125); assert(d.c.good==0&&d.c.bad==1); ++checks; }
   { Driver d(Exercise::Squat); d.cycle(170,80,60); assert(d.c.bad==1 && (d.events[0].faults&Torso)); ++checks; }
   { Driver d(Exercise::Curl); for(int i=0;i<100;++i)d.frame(170+(i%3-1)*2); assert(d.c.attempts==0); ++checks; }
   { Driver d(Exercise::Curl); d.hold(40); d.ramp(40,170); d.hold(170); assert(d.c.attempts==0); ++checks; }
